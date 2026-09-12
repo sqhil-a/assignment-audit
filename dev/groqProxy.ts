@@ -407,13 +407,17 @@ export async function runGroqAudit(
         task: "Evaluate revision effectiveness, using this independently created current report. The recommendationChanges object must contain a result for every exact previous priority ID required in the schema. Use current source IDs for evidence references. For keyComparisons select exact beforeId and afterId from the supplied passage lists; the application will insert their original text. Use empty strings for evidence.quote in this comparison because passages supply the quoted evidence. Keep comparisons concise.",
         fromVersion: previous.versionNumber,
         toVersion: input.versionNumber,
-        originalAssignment: input.originalVersion?.analyzedSources.filter(
-          (s) => s.role === "assignment",
+        originalAssignment:
+          input.originalVersion?.id !== previous.id
+            ? input.originalVersion?.analyzedSources
+                .filter((s) => s.role === "assignment")
+                .map(({ id, text }) => ({ id, text }))
+            : undefined,
+        // Passage lists already contain the full previous and revised assignments.
+        // Do not send those drafts again inside source snapshots.
+        currentMaterials: currentMaterials.map((s) =>
+          s.role === "assignment" ? { ...s, text: undefined } : s,
         ),
-        previousAssignment: previous.analyzedSources.filter(
-          (s) => s.role === "assignment",
-        ),
-        currentMaterials: input.materials,
         beforePassages,
         afterPassages,
         previousReport: previous.report,
@@ -477,6 +481,64 @@ export function groqDevProxy(apiKey: string): Plugin {
     apply: "serve",
     configureServer(server) {
       let active = 0;
+      server.middlewares.use("/api/health", async (req, res) => {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Cache-Control", "no-store");
+        const host = req.headers.host || "";
+        const origin = req.headers.origin;
+        if (
+          !/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host) ||
+          (origin && origin !== `http://${host}`)
+        ) {
+          res.statusCode = 403;
+          res.end(JSON.stringify({ error: "Local access only." }));
+          return;
+        }
+        if (req.method !== "GET") {
+          res.statusCode = 405;
+          res.setHeader("Allow", "GET");
+          res.end(JSON.stringify({ error: "Use GET." }));
+          return;
+        }
+        if (!apiKey) {
+          res.statusCode = 503;
+          res.end(
+            JSON.stringify({
+              error: "Set GROQ_API_KEY in .env.local and restart the app.",
+            }),
+          );
+          return;
+        }
+        try {
+          const response = await fetch(
+            `https://api.groq.com/openai/v1/models/${MODEL}`,
+            {
+              headers: { Authorization: `Bearer ${apiKey}` },
+              signal: AbortSignal.timeout(10000),
+            },
+          );
+          if (!response.ok) {
+            res.statusCode = response.status === 401 ? 401 : 502;
+            res.end(
+              JSON.stringify({
+                error:
+                  response.status === 401
+                    ? "Groq rejected the API key. Update .env.local and restart the app."
+                    : "Groq is unavailable. Try again shortly.",
+              }),
+            );
+            return;
+          }
+          res.end(JSON.stringify({ connected: true, model: MODEL }));
+        } catch {
+          res.statusCode = 502;
+          res.end(
+            JSON.stringify({
+              error: "Could not reach Groq. Check your connection and retry.",
+            }),
+          );
+        }
+      });
       server.middlewares.use("/api/audit", async (req, res, next) => {
         if (req.url !== "/" && req.url !== "") {
           next();

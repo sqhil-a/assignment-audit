@@ -260,6 +260,22 @@ describe("untrusted API responses", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
   });
 });
+describe("explicit live endpoint", () => {
+  it("uses a supplied endpoint even when the build defaults to demo mode", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ report: sampleReport() })),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await auditAssignment(input(), undefined, {
+      endpoint: "https://test.invalid/audit",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.report.meta.isDemo).toBe(false);
+    vi.unstubAllGlobals();
+  });
+});
 describe("local project persistence", () => {
   it("retains every version, context, comparison, and checked item after reload", () => {
     const storage = new MemoryStorage();

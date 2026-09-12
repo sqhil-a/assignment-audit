@@ -1,6 +1,7 @@
 import { test, expect } from "vitest";
 import { loadEnv } from "vite";
 import { runGroqAudit } from "../dev/groqProxy";
+import { auditAssignment } from "../src/services/auditService";
 import { defaultSettings } from "../src/types/audit";
 import type { Source, AuditVersion } from "../src/types/audit";
 import { writeFileSync } from "node:fs";
@@ -10,6 +11,17 @@ test.skipIf(!enabled)(
   async () => {
     const apiKey = loadEnv("development", process.cwd(), "").GROQ_API_KEY;
     expect(!!apiKey).toBe(true);
+    const run = (
+      input: Parameters<typeof runGroqAudit>[0],
+      key: string,
+      signal: AbortSignal,
+    ) =>
+      process.env.LIVE_AUDIT_URL
+        ? auditAssignment(input, signal, {
+            endpoint: process.env.LIVE_AUDIT_URL,
+            demo: false,
+          })
+        : runGroqAudit(input, key, signal);
     const source = (
       id: string,
       role: Source["role"],
@@ -48,7 +60,7 @@ test.skipIf(!enabled)(
       educationLevel: "High school" as const,
       depth: "Quick" as const,
     };
-    const first = await runGroqAudit(
+    const first = await run(
       { materials, settings, versionNumber: 1 },
       apiKey,
       AbortSignal.timeout(170000),
@@ -77,7 +89,7 @@ test.skipIf(!enabled)(
         ? { ...s, text: revision, size: revision.length }
         : s,
     );
-    const second = await runGroqAudit(
+    const second = await run(
       {
         materials: next,
         settings,
@@ -86,7 +98,7 @@ test.skipIf(!enabled)(
         originalVersion: version,
       },
       apiKey,
-      AbortSignal.timeout(120000),
+      AbortSignal.timeout(170000),
     );
     expect(second.comparison?.recommendationChanges.length).toBe(
       first.report.priorities.length,

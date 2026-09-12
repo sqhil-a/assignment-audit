@@ -2231,7 +2231,8 @@ td .evidence-list {
     gap: 9px;
   }
   .accordion-end .badge {
-    display: none;
+    white-space: normal;
+    text-align: center;
   }
   .workspace-grid {
     grid-template-columns: minmax(0, 1fr) 190px;
@@ -2564,7 +2565,8 @@ td .evidence-list {
     gap: 7px;
   }
   .accordion-end .badge {
-    display: none;
+    font-size: 0.625rem;
+    padding: 4px 6px;
   }
   .feedback-list article {
     padding: 19px 17px;

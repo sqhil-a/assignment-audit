@@ -18,7 +18,7 @@ export async function auditAssignment(
   options: { endpoint?: string; demo?: boolean } = {},
 ): Promise<AuditResult> {
   validateInput(input);
-  if (options.demo ?? isDemoMode) {
+  if (options.demo ?? (!options.endpoint && isDemoMode)) {
     await new Promise<void>((resolve, reject) => {
       const abort = () => {
         clearTimeout(timer);
@@ -68,6 +68,14 @@ export async function auditAssignment(
       if (response.status === 413)
         throw new Error(
           "Your materials are too long for the configured model. Shorten the context and retry.",
+        );
+      if (response.status === 504)
+        throw new Error(
+          "The AI service timed out, often because of provider rate limits. Your materials are saved in this form. Wait a minute, then retry.",
+        );
+      if (response.status === 503)
+        throw new Error(
+          "Live AI is not configured on the server. Set its GROQ_API_KEY and restart the server.",
         );
       throw new Error(
         "The audit service could not complete the review. Your materials are still here. Please retry.",

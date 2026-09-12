@@ -15,6 +15,10 @@ pnpm dev
 
 Open the URL printed by Vite. The local development proxy uses **Groq / openai/gpt-oss-20b**. The key is read by Vite's server, never exposed to the browser. `.env.local` is ignored by Git. Without a key or external endpoint, the app uses clearly labeled sample reports.
 
+To use real AI, open **Settings → Test AI connection**, then start **New audit** and add your own assignment. After the report finishes, choose **Re-Audit Revision**, add your revised assignment, and run it again. The instructions, rubric, and feedback carry forward. Open **Revision progress**, **Recommendation tracking**, and **Before & after** in Version 2 to inspect the comparison.
+
+Sample reports and their revisions stay in Demo Mode. Start a new audit to analyze your own work. `pnpm preview` previews the static production build and uses Demo Mode unless `VITE_AUDIT_API_URL` was configured when building; use `pnpm dev` for local Groq analysis.
+
 ```sh
 pnpm typecheck
 pnpm test
@@ -26,6 +30,12 @@ pnpm preview
 
 ```sh
 RUN_LIVE_TESTS=1 pnpm test tests/live.test.ts
+```
+
+To test the full local HTTP route while `pnpm dev` is running:
+
+```sh
+RUN_LIVE_TESTS=1 LIVE_AUDIT_URL=http://127.0.0.1:5173/api/audit pnpm test tests/live.test.ts
 ```
 
 ## GitHub Pages
