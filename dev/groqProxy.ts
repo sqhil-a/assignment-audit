@@ -54,6 +54,28 @@ const DetailSchema = ModelReportSchema.omit({
   teacherFeedback: true,
 });
 const MODEL = "openai/gpt-oss-20b";
+function canonicalizeRubricStatuses(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalizeRubricStatuses);
+  if (!value || typeof value !== "object") return value;
+  const object = value as Record<string, unknown>;
+  const copy = Object.fromEntries(
+    Object.entries(object).map(([key, child]) => [
+      key,
+      canonicalizeRubricStatuses(child),
+    ]),
+  );
+  if (typeof copy.status === "string") {
+    copy.status =
+      {
+        Excellent: "Strong",
+        Outstanding: "Strong",
+        Good: "Nearly there",
+        Developing: "Needs work",
+        "Needs improvement": "Needs work",
+      }[copy.status] || copy.status;
+  }
+  return copy;
+}
 // Strict decoding requires every property to be required, including optional display text.
 // Empty strings represent unavailable estimates or quotations; the client treats them as absent.
 function strictSchema(value: unknown, sourceIds?: string[]): unknown {
@@ -165,9 +187,13 @@ async function completion(
     );
     if (!response.ok) {
       const detail = (await response.json().catch(() => null)) as {
-        error?: { code?: string; message?: string };
+        error?: { code?: string; message?: string; failed_generation?: string };
       } | null;
       const message = detail?.error?.message || "";
+      if (process.env.AUDIT_DIAGNOSTICS === "1")
+        console.info(
+          `[audit:${name}] HTTP ${response.status} ${detail?.error?.code || ""}: ${message.slice(0, 500)}`,
+        );
       if (response.status === 429 && attempt < 5) {
         const limit = Number(message.match(/Limit (\d+)/)?.[1]);
         const requested = Number(message.match(/Requested (\d+)/)?.[1]);
@@ -262,8 +288,9 @@ export async function runGroqAudit(
       materials: currentMaterials,
     },
     signal,
-    input.settings.depth === "Quick" ? 4500 : 7000,
+    input.settings.depth === "Quick" ? 3600 : 4800,
   );
+  overviewRaw = canonicalizeRubricStatuses(overviewRaw);
   let overview = OverviewSchema.safeParse(overviewRaw);
   if (!overview.success)
     throw new ProxyError(502, "The assessment failed validation.");
@@ -292,8 +319,9 @@ export async function runGroqAudit(
         materials: currentMaterials,
       },
       signal,
-      6500,
+      4800,
     );
+    overviewRaw = canonicalizeRubricStatuses(overviewRaw);
     overview = OverviewSchema.safeParse(overviewRaw);
     if (!overview.success)
       throw new ProxyError(502, "The assessment failed validation.");
@@ -314,9 +342,9 @@ export async function runGroqAudit(
       currentOverview: overview.data,
     },
     signal,
-    input.settings.depth === "Quick" ? 4500 : 7000,
+    input.settings.depth === "Quick" ? 3400 : 4800,
   );
-  const detail = DetailSchema.safeParse(detailRaw);
+  const detail = DetailSchema.safeParse(canonicalizeRubricStatuses(detailRaw));
   if (!detail.success)
     throw new ProxyError(502, "The detailed review failed validation.");
   const raw = { ...overview.data, ...detail.data };
@@ -432,7 +460,7 @@ export async function runGroqAudit(
         },
       },
       signal,
-      5500,
+      3600,
     );
     const modelResult = modelComparisonSchema.safeParse(rawComparison);
     if (!modelResult.success)

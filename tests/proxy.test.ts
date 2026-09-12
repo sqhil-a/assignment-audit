@@ -120,4 +120,30 @@ describe("Groq proxy contract", () => {
     expect(result.comparison?.recommendationChanges).toHaveLength(4);
     expect(result.comparison?.resolvedCount).toBe(2);
   });
+  it("canonicalizes common rubric status synonyms from the model", async () => {
+    const report = sampleReport();
+    const data = {
+      ...report,
+      title: report.meta.title,
+      rubric: report.rubric.map((item, i) => ({
+        ...item,
+        status: i === 0 ? "Developing" : item.status,
+      })),
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(data))
+      .mockResolvedValueOnce(response(data));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await runGroqAudit(
+      {
+        materials: sampleMaterials(),
+        settings: defaultSettings,
+        versionNumber: 1,
+      },
+      "test-key",
+      AbortSignal.timeout(10000),
+    );
+    expect(result.report.rubric[0].status).toBe("Needs work");
+  });
 });

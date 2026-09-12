@@ -67,7 +67,9 @@ export const RubricSchema = z.object({
   name: text,
   expectation: text,
   estimate: text.optional(),
-  status: z.enum(["Strong", "Nearly there", "Needs work", "Unclear"]),
+  // Groq occasionally emits a valid rubric synonym outside our display
+  // vocabulary. The proxy canonicalizes common values before storage.
+  status: text,
   strengths: text,
   gaps: text,
   evidence,
