@@ -19,7 +19,10 @@ import {
   authorityGuidance,
   checkUnprovidedRequirements,
 } from "../src/services/grounding";
-import { AUDIT_INSTRUCTIONS } from "../src/services/instructions";
+import {
+  AUDIT_INSTRUCTIONS,
+  CONCISE_STYLE_GUIDANCE,
+} from "../src/services/instructions";
 import {
   validateInput,
   validateReportEvidence,
@@ -173,7 +176,11 @@ async function completion(
           messages: [
             {
               role: "system",
-              content: AUDIT_INSTRUCTIONS + contract + schemaCorrection,
+              content:
+                AUDIT_INSTRUCTIONS +
+                CONCISE_STYLE_GUIDANCE +
+                contract +
+                schemaCorrection,
             },
             { role: "user", content: JSON.stringify(user) },
           ],
@@ -282,7 +289,7 @@ export async function runGroqAudit(
     ),
     "audit_overview",
     {
-      task: "Independently review the current assignment. Cover every supplied rubric criterion, explicit requirement, and meaningful teacher comment. Use the exact original comment wording.",
+      task: "Independently review the current assignment. Cover every supplied rubric criterion, explicit requirement, and meaningful teacher comment. Use the exact original comment wording. Keep the executive writing concise and natural: one clear verdict, the strongest evidence, the main limitation, and the next action. Return no more than five priorities, with no repeated issue wording.",
       scope,
       settings: input.settings,
       materials: currentMaterials,
@@ -335,7 +342,7 @@ export async function runGroqAudit(
     ),
     "audit_detail",
     {
-      task: "Review the current assignment in detail. The independent overview below is context for consistent recommendations. For Quick depth keep supporting findings concise. Do not omit required JSON fields. The revision plan and final checklist must follow the priority issues.",
+      task: "Review the current assignment in detail. The independent overview below is context for consistent recommendations. For Quick depth keep supporting findings concise. Use the same natural teacher voice and do not repeat the overview verbatim. Every item should add a distinct observation or action. Keep sections to one or two sentences and edits strategic. Do not omit required JSON fields. The revision plan and final checklist must follow the priority issues.",
       scope,
       settings: input.settings,
       materials: currentMaterials,

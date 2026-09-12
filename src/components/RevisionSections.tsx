@@ -113,7 +113,7 @@ export function NewIssues({
         regressions ? "No regressions identified" : "No new issues identified"
       }
     >
-      See the recommendation tracking for anything still unresolved.
+      Review recommendation tracking for remaining work.
     </EmptyState>
   );
 }

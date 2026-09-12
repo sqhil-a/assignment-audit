@@ -392,7 +392,6 @@ export default function ReportPage() {
         <ReportSection
           id="priorities"
           title="Fix These First"
-          subtitle="The changes with the greatest impact."
           aside={<Badge>{report.priorities.length} priorities</Badge>}
         >
           <PriorityCards report={report} sources={sources} />
