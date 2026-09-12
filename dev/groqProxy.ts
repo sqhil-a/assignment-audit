@@ -156,7 +156,7 @@ async function completion(
     " The JSON output must include ALL these root fields: " +
     fields.join(", ") +
     ". Every analysis, priority, criterion, requirement, feedback, and section object must include its evidence array, even if empty. Do not omit required properties.";
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     const response = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -194,7 +194,7 @@ async function completion(
         console.info(
           `[audit:${name}] HTTP ${response.status} ${detail?.error?.code || ""}: ${message.slice(0, 500)}`,
         );
-      if (response.status === 429 && attempt < 5) {
+      if (response.status === 429 && attempt < 7) {
         const limit = Number(message.match(/Limit (\d+)/)?.[1]);
         const requested = Number(message.match(/Requested (\d+)/)?.[1]);
         if (limit && requested > limit)
@@ -215,7 +215,7 @@ async function completion(
       if (
         response.status === 400 &&
         detail?.error?.code === "json_validate_failed" &&
-        schemaRetries < 2
+        schemaRetries < 4
       ) {
         schemaRetries++;
         schemaCorrection =
